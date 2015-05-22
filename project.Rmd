@@ -1,0 +1,104 @@
+---
+title: "Project"
+output: html_document
+---
+
+<h2>Data</h2> 
+
+The training data for this project are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. Thanks to them for allowing their data to be used.
+
+<h2>Study</h2>
+The goal of the project is to predict the manner in which the exercise was done. This is the "classe" variable in the training set. Any of the other variables could be used to predict with. This report describes the model was built, how cross validation was used, what the expected out of sample error is, and the rationale behind the choices made. In addition the prediction model was used to predict 20 different test cases. 
+
+<h2>Download Data File and Test File</h2>
+
+```{r} 
+
+setInternet2(TRUE)
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",
+                  "pml-training.csv", method="curl")
+
+              
+data <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!",""))
+dim(data)
+
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","pml-test.csv")
+
+testdata <- read.csv("pml-test.csv", na.strings = c("NA", "#DIV/0!",""))
+dim(testdata)
+```
+<h2>Clean up the Data</h2>
+
+```{r}
+##take off first 5 columns that have information not related to modeling from ##training and testing data sets
+data<-data[, -c(1:5)]
+testdata<-testdata[, -c(1:5)]
+
+
+##specify NA columns then remove them from training and testing data sets
+BlankColumns <- colSums(is.na(data))
+data <- data[,!BlankColumns]
+testdata <- testdata[,!BlankColumns]
+```
+
+<h2>Create training and testing sets from data</h2>
+```{r}
+
+##Split data into training set and testing set
+set.seed(330)
+library(caret)
+
+inTrain = createDataPartition(y=data$classe, p=0.6, list=FALSE)
+training = data[inTrain,]
+testing = data[-inTrain,]
+dim(training)
+dim(testing)
+
+```
+
+<h2>Prediction Model-Accuracy-Out of Sample Error</h2>
+
+```{r}
+##Find best fit model
+modFit <- train(classe ~., method="rf", data=training, trControl=trainControl(method='cv'), number=5, allowParallel=TRUE )
+
+modFit
+
+##Now do confusion matrix for training dataset 
+trainPrediction <- predict(modFit, training)
+confusionMatrix(trainPrediction, training$classe)
+
+##Now cross validation check for testing dataset
+cvPrediction <- predict(modFit, testing)
+confusionMatrix(cvPrediction, testing$classe)
+
+##Apply model to test set of data
+testPrediction <- predict(modFit, testdata)
+testPrediction
+
+
+##Out of sample error
+
+# true accuracy of the predicted model
+outOfSampleError.accuracy <- sum(testPrediction == testdata$classe)/length(testPrediction)
+
+outOfSampleError.accuracy
+
+
+# out of sample error and percentage of out of sample error
+outOfSampleError <- 1 - outOfSampleError.accuracy
+outOfSampleError
+
+e <- outOfSampleError * 100
+e
+
+
+
+```
+
